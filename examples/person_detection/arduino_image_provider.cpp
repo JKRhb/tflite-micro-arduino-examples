@@ -20,15 +20,6 @@ limitations under the License.
 #include "model_settings.h"
 #include "tensorflow/lite/micro/micro_log.h"
 #include "tensorflow/lite/micro/micro_utils.h"
-#include "test_over_serial/test_over_serial.h"
-
-using namespace test_over_serial;
-
-#if defined(ARDUINO) && !defined(ARDUINO_ARDUINO_NANO33BLE)
-#define ARDUINO_EXCLUDE_CODE
-#endif  // defined(ARDUINO) && !defined(ARDUINO_ARDUINO_NANO33BLE)
-
-#ifndef ARDUINO_EXCLUDE_CODE
 
 #include "Arduino.h"
 
@@ -126,69 +117,8 @@ TfLiteStatus GetCameraImage(const TfLiteTensor* tensor) {
   return kTfLiteOk;
 }
 
-TfLiteStatus GetTestImage(TestOverSerial& test, const TfLiteTensor* tensor) {
-  volatile bool done = false;
-  volatile bool aborted = false;
-  volatile size_t image_width = 0, image_height = 0;
-
-  InputHandler handler = [&aborted, &done, &image_width,
-                          &image_height](const InputBuffer* const input) {
-    if (0 == input->offset) {
-      if ((kQQVGA_height * kQQVGA_width) == input->total) {
-        image_width = kQQVGA_width;
-        image_height = kQQVGA_height;
-      } else if ((kNumCols * kNumRows) == input->total) {
-        image_width = kNumCols;
-        image_height = kNumRows;
-      } else {
-        // image dimensions are not supported, abort input processing
-        aborted = true;
-        return false;
-      }
-    }
-
-    std::copy_n(input->data.uint8, input->length, &image_buffer[input->offset]);
-    if (input->total == (input->offset + input->length)) {
-      done = true;
-    }
-    return true;
-  };
-
-  while (!done) {
-    test.ProcessInput(&handler);
-    if (aborted) {
-      MicroPrintf("Input processing aborted");
-      return kTfLiteError;
-    }
-    // wait for a full image from serial port before processing
-    if (done) {
-      TfLiteStatus decode_status =
-          CropAndQuantizeImage(image_width, image_height, tensor);
-      if (decode_status != kTfLiteOk) {
-        MicroPrintf("CropAndQuantizeImage failed");
-        return decode_status;
-      }
-    }
-  }
-
-  return kTfLiteOk;
-}
-
 }  // namespace
 
 TfLiteStatus GetImage(const TfLiteTensor* tensor) {
-  TestOverSerial& test = TestOverSerial::Instance(kIMAGE_GRAYSCALE);
-  if (!test.IsTestMode()) {
-    // check serial port for test mode command
-    test.ProcessInput(nullptr);
-  }
-  if (test.IsTestMode()) {
-    return GetTestImage(test, tensor);
-  } else {
-    // get an image from the camera
-    return GetCameraImage(tensor);
-  }
-  // NOTREACHED
+  return GetCameraImage(tensor);
 }
-
-#endif  // ARDUINO_EXCLUDE_CODE

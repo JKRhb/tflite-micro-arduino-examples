@@ -13,12 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 
-#if defined(ARDUINO) && !defined(ARDUINO_ARDUINO_NANO33BLE)
-#define ARDUINO_EXCLUDE_CODE
-#endif  // defined(ARDUINO) && !defined(ARDUINO_ARDUINO_NANO33BLE)
-
-#ifndef ARDUINO_EXCLUDE_CODE
-
 #include <cmath>
 
 #include "Arduino.h"
@@ -71,5 +65,3 @@ void RespondToDetection(float person_score, float no_person_score) {
               static_cast<int>(no_person_score_int),
               static_cast<int>(no_person_score_frac * 100));
 }
-
-#endif  // ARDUINO_EXCLUDE_CODE
